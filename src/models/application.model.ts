@@ -45,6 +45,7 @@ const applicationSchema = new Schema<IApplication>(
 
 // A student can apply to the same job only once
 applicationSchema.index({ job: 1, applicant: 1 }, { unique: true });
+applicationSchema.index({ applicant: 1, createdAt: -1 });
 
 export const Application = model<IApplication>(
   "Application",

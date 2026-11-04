@@ -73,5 +73,6 @@ const jobSchema = new Schema<IJob>(
 // Indexes for faster searching and listing
 jobSchema.index({ title: "text", description: "text" });
 jobSchema.index({ status: 1, createdAt: -1 });
+jobSchema.index({ postedBy: 1 });
 
 export const Job = model<IJob>("Job", jobSchema);
