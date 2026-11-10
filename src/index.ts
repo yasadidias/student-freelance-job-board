@@ -15,7 +15,7 @@ import userRoutes from "./routes/user.routes";
 const app = express();
 const PORT = Number(process.env.PORT ?? 5000);
 
-// Render runs behind a proxy, so trust the first one (needed for rate limiting)
+// Render and Vercel run behind a proxy, so trust the first one (needed for rate limiting)
 app.set("trust proxy", 1);
 
 app.use(helmet());
@@ -45,6 +45,19 @@ const aiLimiter = rateLimit({
   message: { success: false, message: "Too many AI requests, slow down" },
 });
 
+// On Vercel there is no long-running server, so make sure the database is
+// connected before each request is handled (the connection is reused).
+if (process.env.VERCEL) {
+  app.use(async (_req, _res, next) => {
+    try {
+      await connectDB();
+      next();
+    } catch (error) {
+      next(error);
+    }
+  });
+}
+
 app.get("/", (_req, res) => {
   res.json({ success: true, message: "Student Freelance Job Board API is running" });
 });
@@ -59,11 +72,17 @@ app.use("/api/ai", aiLimiter, aiRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
-connectDB()
-  .then(() => {
-    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-  })
-  .catch((error: unknown) => {
-    console.error("Failed to start server:", error);
-    process.exit(1);
-  });
+// Locally (and on Render) start a normal server. Vercel imports the exported
+// app instead and runs it as a serverless function.
+if (!process.env.VERCEL) {
+  connectDB()
+    .then(() => {
+      app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+    })
+    .catch((error: unknown) => {
+      console.error("Failed to start server:", error);
+      process.exit(1);
+    });
+}
+
+export default app;
