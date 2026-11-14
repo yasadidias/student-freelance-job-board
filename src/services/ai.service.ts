@@ -23,8 +23,26 @@ ${input.studentName}`;
 // Google retires models over time, so having a few backups keeps the feature working.
 const BACKUP_MODELS = ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-3.6-flash"];
 
+// Each single AI call may take at most this long, then we give up on it (Google can be slow when busy).
+const CALL_TIMEOUT_MS = 8000;
+
 // Stop trying after this many milliseconds so the request never hangs for too long.
-const MAX_TOTAL_MS = 25000;
+const MAX_TOTAL_MS = 18000;
+
+const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> =>
+  new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`AI call timed out after ${ms} ms`)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
 
 // Temporary Google errors (too busy / rate limit / server error) are worth retrying once.
 const RETRYABLE_STATUSES = [429, 500, 503];
@@ -75,7 +93,7 @@ Start with "Dear Hiring Manager," and end with "Kind regards," followed by the s
       }
 
       try {
-        const response = await ai.models.generateContent({ model, contents: prompt });
+        const response = await withTimeout(ai.models.generateContent({ model, contents: prompt }), CALL_TIMEOUT_MS);
         const text = response.text?.trim();
         if (text) {
           return { text, source: "ai" };
