@@ -74,6 +74,47 @@ This repository is the **backend REST API** (Node.js, Express and TypeScript). T
 4. The client opens the applicants of that job, reads the cover letter and checks the student's free times.
 5. The client accepts or rejects. The student receives an email with the result.
 
+## System design
+
+**Architecture (client-server separation).** The React frontend talks to the Express API over REST with a JWT in the `Authorization` header. Only the backend talks to the database and to the external services.
+
+```mermaid
+flowchart LR
+  U["Student / Client / Admin<br/>(browser)"] --> FE["Frontend<br/>React + TypeScript (Vercel)"]
+  FE -->|"REST API + JWT"| BE["Backend<br/>Express + TypeScript (Vercel)"]
+  BE --> DB[("MongoDB Atlas")]
+  BE -->|"cover letter"| AI["Google Gemini API"]
+  BE -->|"status email"| MAIL["Gmail SMTP"]
+```
+
+**Database relationships.** A client (User) posts many Jobs, a Job receives many Applications, and a student (User) submits many Applications.
+
+```mermaid
+erDiagram
+  USER ||--o{ JOB : posts
+  USER ||--o{ APPLICATION : submits
+  JOB ||--o{ APPLICATION : receives
+  USER {
+    string name
+    string email
+    string role
+    boolean isBlocked
+    array availability
+  }
+  JOB {
+    string title
+    string description
+    string category
+    number budget
+    date deadline
+    string status
+  }
+  APPLICATION {
+    string coverLetter
+    string status
+  }
+```
+
 ## Folder structure
 
 ```
@@ -210,6 +251,8 @@ Base path: `/api`. Every response looks like `{ "success": true|false, "message"
 | GET | `/api/admin/users` | ADMIN | List and search users |
 | PATCH | `/api/admin/users/:id` | ADMIN | Block / unblock a user or change the role |
 | DELETE | `/api/admin/users/:id` | ADMIN | Delete a user and their data |
+
+Example requests with JSON bodies for the main endpoints are in [docs/API_EXAMPLES.md](docs/API_EXAMPLES.md).
 
 ## Deployment
 
